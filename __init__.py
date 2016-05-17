@@ -25,8 +25,8 @@ class Extension(ext.Extension):
         schema = super(Extension, self).get_config_schema()
         schema['host'] = config.Hostname()
         schema['port'] = config.Port()
-        schema['user'] = config.String()
-        schema['password'] = config.Secret()
+        schema['user'] = config.String(optional=True)
+        schema['password'] = config.Secret(optional=True)
         return schema
 
     def setup(self, registry):

@@ -17,7 +17,7 @@ class KodiBackend(pykka.ThreadingActor, backend.Backend):
     def __init__(self, config, audio):
         super(KodiBackend, self).__init__()
         self.config = config
-        self.remote = KodiClient(config['soundcloud'])
+        self.remote = KodiClient(config['kodi'])
         self.library = KodiLibraryProvider(backend=self)
         self.playback = KodiPlaybackProvider(audio=audio, backend=self)
         self.uri_schemes = ['kodi']
