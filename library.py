@@ -48,16 +48,20 @@ def parse_uri(uri):
     return _type, item_id, params
 
 
-def new_directory(name, _type):
-    return models.Ref.directory(uri=make_uri(_type, id=None), name=name)
+def make_directory_ref(name, _type, **params):
+    return models.Ref.directory(
+        uri=make_uri(_type, id=None, **params), name=name)
+
 
 def make_artist_ref(artist):
     uri = make_uri('album', artist_id=artist['artistid'])
     return models.Ref.artist(uri=uri, name=artist['label'])
 
+
 def make_album_ref(album):
     uri = make_uri('song', album_id=album['albumid'])
     return models.Ref.album(uri=uri, name=album['label'])
+
 
 class KodiLibraryProvider(backend.LibraryProvider):
     root_directory = models.Ref.directory(uri='kodi:/', name='Kodi')
@@ -66,9 +70,10 @@ class KodiLibraryProvider(backend.LibraryProvider):
         _type, _id, params = parse_uri(uri)
         if uri in (None, self.root_directory.uri):
             return [
-                new_directory(title, _type)
-                for title, _type in (
-                    ('Artists', 'artist'), ('Albums', 'album'))]
+                make_directory_ref('All Artists', 'artist'),
+                make_directory_ref('All Albums', 'albums'),
+                make_directory_ref('Recently added albums', 'album',
+                                   recently_added=True)]
         elif _type == 'album':
             return [make_album_ref(album)
                     for album in self.backend.remote.get_albums(**params)]
