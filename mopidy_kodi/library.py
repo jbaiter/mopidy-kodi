@@ -101,8 +101,13 @@ class KodiLibraryProvider(backend.LibraryProvider):
                            key=lambda s: (s.get('disc', 0), s.get('track', 0)))
             return map(self._make_track_ref, songs)
 
-    def lookup(self, uri):
-        return self._make_track(self.backend.remote.lookup_song(uri))
+    def lookup(self, uri=None, uris=None):
+        if not uris and not uri:
+            return []
+        elif uri:
+            uris = [uri]
+        return [self._make_track(self.backend.remote.lookup_song(uri))
+                for uri in uris]
 
     def _make_track(song):
         artists = [self._make_artist(self.backend.remote.get_artist(aid))
