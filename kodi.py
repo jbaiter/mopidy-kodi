@@ -81,7 +81,8 @@ class KodiClient(object):
     @cached()
     def get_albums(self, artist_id=None, recently_added=False):
         if recently_added:
-            return self._api.AudioLibrary.GetRecentlyAddedAlbums()['albums']
+            return self._api.AudioLibrary.GetRecentlyAddedAlbums(
+                properties=PROPERTIES['album'])['albums']
         if artist_id is not None:
             artist_id = int(artist_id)
         params = {'properties': PROPERTIES['album'],

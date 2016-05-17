@@ -58,9 +58,14 @@ def make_artist_ref(artist):
     return models.Ref.artist(uri=uri, name=artist['label'])
 
 
-def make_album_ref(album):
+def make_album_ref(album, display_artist=False):
     uri = make_uri('song', album_id=album['albumid'])
-    return models.Ref.album(uri=uri, name=album['label'])
+    tmpl = "{label}"
+    if 'year' in album and album['year']:
+        tmpl += " [{year}]"
+    if display_artist and 'displayartist' in album:
+        tmpl = "{displayartist}: " + tmpl
+    return models.Ref.album(uri=uri, name=tmpl.format(**album))
 
 
 class KodiLibraryProvider(backend.LibraryProvider):
@@ -75,15 +80,26 @@ class KodiLibraryProvider(backend.LibraryProvider):
                 make_directory_ref('Recently added albums', 'album',
                                    recently_added=True)]
         elif _type == 'album':
-            return [make_album_ref(album)
-                    for album in self.backend.remote.get_albums(**params)]
+            if 'recently_added' in params:
+                albums = list(self.backend.remote.get_albums(**params))
+            else:
+                if 'artistid' in params:
+                    sort_key = 'year'
+                else:
+                    sort_key = 'label'
+                albums = sorted(self.backend.remote.get_albums(**params),
+                                key=lambda a: a[sort_key])
+            return [
+                make_album_ref(a, display_artist=('artistid' not in params))
+                for a in albums]
         elif _type == 'artist':
-            return [make_artist_ref(artist)
-                    for artist in self.backend.remote.get_artists()]
+            artists = sorted(self.backend.remote.get_artists(),
+                             key=lambda a: a['label'])
+            return map(make_artist_ref, artists)
         elif _type == 'song':
-            refs = [self._make_track_ref(song)
-                    for song in self.backend.remote.get_songs(**params)]
-            return refs
+            songs = sorted(self.backend.remote.get_songs(**params),
+                           key=lambda s: (s.get('disc', 0), s.get('track', 0)))
+            return map(self._make_track_ref, songs)
 
     def lookup(self, uri):
         return self._make_track(self.backend.remote.lookup_song(uri))
