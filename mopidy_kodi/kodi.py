@@ -70,10 +70,9 @@ class KodiClient(object):
                 artist = self._api.AudioLibrary.GetArtistDetails(
                     artistid=artist_id,
                     properties=PROPERTIES['artist'])['artistdetails']
-                cached['artist.{}'.format(artist_id)] = artist
+                self._cache['artist.{}'.format(artist_id)] = artist
                 return artist
             except Exception as e:
-                cached['artist.{}'.format(artist_id)] = None
                 return None
         else:
             return cached
@@ -100,13 +99,13 @@ class KodiClient(object):
         cached = self._cache.get('album.{}'.format(album_id))
         if cached is None:
             try:
-                artist = self._api.AudioLibrary.GetAlbumDetails(
+                album = self._api.AudioLibrary.GetAlbumDetails(
                     albumid=album_id,
                     properties=PROPERTIES['album'])['albumdetails']
-                cached['album.{}'.format(album_id)] = album
+                self._cache['album.{}'.format(album_id)] = album
                 return album
             except Exception as e:
-                cached['album.{}'.format(album_id)] = None
+                self._cache['album.{}'.format(album_id)] = None
                 return None
         else:
             return cached
@@ -124,8 +123,6 @@ class KodiClient(object):
             self._api.AudioLibrary.GetSongs, **params))
         # Second level cache so that get_song doesn't have to make an API call
         self._cache.update({'song.{}'.format(s['songid']): s for s in songs})
-        self._cache.update({'songpath.{}'.format(s['file']): s['songid']
-                           for s in songs})
         return songs
 
     def get_song(self, song_id):
@@ -136,22 +133,13 @@ class KodiClient(object):
                 song = self._api.AudioLibrary.GetSongDetails(
                     songid=song_id,
                     properties=PROPERTIES['song'])['songdetails']
-                cached['song.{}'.format(song_id)] = song
+                self._cache['song.{}'.format(song_id)] = song
                 return song
             except Exception as e:
-                cached['song.{}'.format(song_id)] = None
+                self._cache['song.{}'.format(song_id)] = None
                 return None
         else:
             return cached
-
-    def lookup_song(self, uri):
-        filename = self._cache.get('trackurl.{}'.format(uri))
-        if not filename:
-            return None
-        song_id = self._cache.get('songpath.{}'.format(filename))
-        if not song_id:
-            return None
-        return self._cache.get('song.{}'.format(song_id))
 
     @cached()
     def get_url(self, filepath):

@@ -25,8 +25,4 @@ class KodiBackend(pykka.ThreadingActor, backend.Backend):
 
 class KodiPlaybackProvider(backend.PlaybackProvider):
     def translate_uri(self, uri):
-        track_id = self.backend.remote.parse_track_uri(uri)
-        track = self.backend.remote.get_track(track_id, True)
-        if track is None:
-            return None
-        return track.uri
+        return self.backend.library.resolve_track_uri(uri)

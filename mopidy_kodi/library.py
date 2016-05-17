@@ -1,29 +1,17 @@
 from __future__ import unicode_literals
 
 import logging
-import re
-import urllib
-from collections import OrderedDict
+import os
 
 from mopidy import backend, models
 
+from . import Extension, schema
+from .util import make_uri
 
-URI_PAT = re.compile(r'^kodi:(.*?)/(.*)$')
 
 logger = logging.getLogger(__name__)
 
 
-def make_uri(_type, id=None, **params):
-    if params:
-        param_str =  "&".join("{}={}".format(k, v) for k, v in params.items())
-    else:
-        param_str = ''
-    uri = 'kodi:/{}{}{}'.format(_type,
-                                '/{}'.format(id) if id else '',
-                                '?' + param_str if param_str else '')
-    logging.debug("URI for type={}, id={}, params={} is {}".format(
-        _type, id, params, uri))
-    return uri
 
 
 def parse_params(param_str):
@@ -106,10 +94,20 @@ class KodiLibraryProvider(backend.LibraryProvider):
             return []
         elif uri:
             uris = [uri]
-        return [self._make_track(self.backend.remote.lookup_song(uri))
+        _type, _id, _ = parse_uri(uri)
+        return [self._make_track(self.backend.remote.get_song(_id))
                 for uri in uris]
 
-    def _make_track(song):
+    def resolve_track_uri(self, uri):
+        _type, _id, _ = parse_uri(uri)
+        if _type != 'song':
+            raise ValueError("Type must be 'song', was '{}'".format(_type))
+        song = self.backend.remote.get_song(_id)
+        if not song:
+            return None
+        return self.backend.remote.get_url(song['file'])
+
+    def _make_track(self, song):
         artists = [self._make_artist(self.backend.remote.get_artist(aid))
                    for aid in song['artistid']]
         album = self._make_album(
@@ -125,31 +123,33 @@ class KodiLibraryProvider(backend.LibraryProvider):
             date=str(song['year']),
             length=1000*song['duration'],
             comment=song['comment'],
-            musicbrainzid=song['musicbrainzid'] or None)
+            musicbrainz_id=song['musicbrainztrackid'] or None)
 
     def _make_album(self, album):
         artists = [self._make_artist(self.backend.remote.get_artist(aid))
                    for aid in album['artistid']]
-        tracks = self.backend.remote.get_songs(albumid=album['albumid'])
+        tracks = self.backend.remote.get_songs(album_id=album['albumid'])
         num_discs = len(set(t['disc'] for t in tracks))
         return models.Album(
             uri=make_uri('album', album['albumid']),
             name=album['label'],
-            artists=artists,
+            artists=[a for a in artists if a is not None],
             num_tracks=len(tracks),
             num_discs=num_discs,
             date=str(album['year']),
-            musicbrainzid=album['musicbrainzid'] or None,
-            images=[self._api.get_url(imguri)
-                    for imguri in album['thumbnail']])
+            musicbrainz_id=album['musicbrainzalbumid'] or None,
+            images=([self.backend.remote.get_url(album['thumbnail'])]
+                    if album['thumbnail'] else []))
 
     def _make_artist(self, artist):
+        if artist is None:
+            return None
         return models.Artist(
             uri=make_uri('artist', artist['artistid']),
             name=artist['label'],
-            musicbrainzid=artist['musicbrainzid'] or None)
+            musicbrainz_id=artist['musicbrainzartistid'] or None)
 
     def _make_track_ref(self, song):
         return models.Ref.track(
-            uri=self.backend.remote.get_url(song['file']),
+            uri=make_uri('track', song['songid']),
             name=song['label'])
