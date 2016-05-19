@@ -1,17 +1,13 @@
 from __future__ import unicode_literals
 
 import logging
-import os
 
 from mopidy import backend, models
 
-from . import Extension, schema
 from .util import make_uri
 
 
 logger = logging.getLogger(__name__)
-
-
 
 
 def parse_params(param_str):
@@ -94,9 +90,13 @@ class KodiLibraryProvider(backend.LibraryProvider):
             return []
         elif uri:
             uris = [uri]
-        _type, _id, _ = parse_uri(uri)
-        return [self._make_track(self.backend.remote.get_song(_id))
-                for uri in uris]
+        tracks = []
+        for uri in uris:
+            _type, _id, _ = parse_uri(uri)
+            if _type != 'song':
+                continue
+            tracks.append(
+                self._make_track(self.backend.remote.get_song(_id)))
 
     def resolve_track_uri(self, uri):
         _type, _id, _ = parse_uri(uri)
